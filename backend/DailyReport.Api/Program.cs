@@ -42,7 +42,18 @@ namespace DailyReport.Api
                 .GetRequiredService<ISqlSugarClient>();
 
             database.DbMaintenance.CreateDatabase();
-            database.CodeFirst.InitTables<DailyReportEntity>();
+
+            database.CodeFirst.InitTables<
+                DailyReportEntity,
+                DailyReportItemEntity
+            >();
+            var itemTableExists = database.DbMaintenance.IsAnyTable(
+                "daily_report_item",
+                false
+            );
+            Console.WriteLine(
+                $"数据库初始化完成，工作项表存在：{itemTableExists}"
+            );
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
