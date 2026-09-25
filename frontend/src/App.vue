@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 
 interface DailyReport {
   id: number
@@ -17,10 +18,19 @@ function getTodayText() {
   return `${year}-${month}-${day}`
 }
 
+function formatDate(value: string) {
+  return value.slice(0, 10)
+}
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString()
+}
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : '发生了未知错误'
+}
+
 const reports = ref<DailyReport[]>([])
 const selectedDate = ref(getTodayText())
 const errorMessage = ref('')
-const operationMessage = ref('')
 const isLoading = ref(false)
 const isCreating = ref(false)
 
@@ -32,13 +42,13 @@ async function loadReports() {
     const response = await fetch('/api/daily-reports')
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
+      throw new Error(`查询失败：HTTP ${response.status}`)
     }
 
     reports.value = (await response.json()) as DailyReport[]
   } catch (error: unknown) {
-    errorMessage.value =
-      error instanceof Error ? error.message : '发生了未知错误'
+    errorMessage.value = getErrorMessage(error)
+    ElMessage.error(errorMessage.value)
   } finally {
     isLoading.value = false
   }
@@ -52,7 +62,6 @@ async function createReport() {
 
   isCreating.value = true
   errorMessage.value = ''
-  operationMessage.value = ''
 
   try {
     const response = await fetch('/api/daily-reports', {
@@ -74,145 +83,186 @@ async function createReport() {
     }
 
     await loadReports()
-    operationMessage.value = '日报创建成功'
+    ElMessage.success('日报创建成功')
   } catch (error: unknown) {
-    errorMessage.value =
-      error instanceof Error ? error.message : '发生了未知错误'
+    errorMessage.value = getErrorMessage(error)
+    ElMessage.error(errorMessage.value)
   } finally {
     isCreating.value = false
   }
-}
-
-function formatDate(value: string) {
-  return value.slice(0, 10)
 }
 
 onMounted(loadReports)
 </script>
 
 <template>
-  <main class="page">
-    <h1>工作日报</h1>
+  <main class="page-shell">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">DAILY REPORT</p>
+        <h1>工作日报</h1>
+        <p class="subtitle">
+          创建并管理每日工作记录
+        </p>
+      </div>
+    </header>
 
-    <section class="toolbar">
-      <label>
-        日报日期：
-        <input v-model="selectedDate" type="date" />
-      </label>
+    <el-card class="create-card" shadow="never">
+      <el-form class="create-form" inline>
+        <el-form-item label="日报日期">
+          <el-date-picker
+            v-model="selectedDate"
+            type="date"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            placeholder="选择日期"
+            :clearable="false"
+          />
+        </el-form-item>
 
-      <button
-        type="button"
-        :disabled="isCreating"
-        @click="createReport"
-      >
-        {{ isCreating ? '正在创建……' : '新建日报' }}
-      </button>
-    </section>
-
-    <p v-if="operationMessage" class="message">
-      {{ operationMessage }}
-    </p>
-
-    <p v-if="isLoading">正在查询 SQLite 数据库……</p>
-
-    <div v-else-if="errorMessage" class="status-card error">
-      <p>{{ errorMessage }}</p>
-      <button type="button" @click="loadReports">
-        重新查询
-      </button>
-    </div>
-
-    <section v-else class="status-card success">
-      <p>当前共有 {{ reports.length }} 条日报记录。</p>
-
-      <table v-if="reports.length > 0">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>日报日期</th>
-            <th>创建时间</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr
-            v-for="report in reports"
-            :key="report.id"
+        <el-form-item>
+          <el-button
+            type="primary"
+            :loading="isCreating"
+            @click="createReport"
           >
-            <td>{{ report.id }}</td>
-            <td>{{ formatDate(report.reportDate) }}</td>
-            <td>
-              {{ new Date(report.createdAt).toLocaleString() }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            新建日报
+          </el-button>
 
-      <p v-else>还没有日报，请创建第一条。</p>
-    </section>
+          <el-button
+            :loading="isLoading"
+            @click="loadReports"
+          >
+            刷新
+          </el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card class="list-card" shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span>日报列表</span>
+
+          <el-tag type="success" effect="light">
+            {{ reports.length }} 条
+          </el-tag>
+        </div>
+      </template>
+
+      <el-alert
+        v-if="errorMessage"
+        class="feedback"
+        :title="errorMessage"
+        type="error"
+        show-icon
+        :closable="false"
+      />
+
+      <el-skeleton
+        v-if="isLoading"
+        :rows="4"
+        animated
+      />
+
+      <el-empty
+        v-else-if="reports.length === 0"
+        description="还没有日报，请创建第一条"
+      />
+
+      <el-table
+        v-else
+        :data="reports"
+        stripe
+        border
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+
+        <el-table-column
+          label="日报日期"
+          min-width="160"
+        >
+          <template #default="scope">
+            {{ formatDate(scope.row.reportDate) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column
+          label="创建时间"
+          min-width="220"
+        >
+          <template #default="scope">
+            {{ formatDateTime(scope.row.createdAt) }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
   </main>
 </template>
 
 <style scoped>
-.page {
-  padding: 48px 24px;
-  text-align: left;
+.page-shell {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0;
 }
 
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.page-header {
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #409eff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+h1 {
+  margin: 0;
+  color: #303133;
+  font-size: 32px;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  color: #909399;
+}
+
+.create-card {
   margin-bottom: 20px;
 }
 
-input,
-button {
-  padding: 8px 12px;
-  font: inherit;
+.create-form :deep(.el-form-item) {
+  margin-bottom: 0;
 }
 
-button {
-  cursor: pointer;
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
 }
 
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+.feedback {
+  margin-bottom: 16px;
 }
 
-.status-card {
-  padding: 20px;
-  border: 1px solid;
-  border-radius: 8px;
-}
+@media (max-width: 640px) {
+  .page-shell {
+    width: min(100% - 20px, 1100px);
+    padding: 24px 0;
+  }
 
-.success {
-  color: #276749;
-  background: #f0fff4;
-  border-color: #9ae6b4;
-}
-
-.error {
-  color: #9b2c2c;
-  background: #fff5f5;
-  border-color: #feb2b2;
-}
-
-.message {
-  color: #276749;
-}
-
-table {
-  width: 100%;
-  margin-top: 16px;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 10px;
-  border-bottom: 1px solid #c6f6d5;
-  text-align: left;
+  .create-form :deep(.el-form-item) {
+    display: flex;
+    margin-right: 0;
+    margin-bottom: 12px;
+  }
 }
 </style>
