@@ -284,8 +284,8 @@ namespace DailyReport.Api.Controllers
 
         [HttpDelete("{reportId:int}/items/{itemId:int}")]
         public async Task<IActionResult> DeleteItem(
-    int reportId,
-    int itemId
+        int reportId,
+        int itemId
 )
         {
             var report = await _database
@@ -360,6 +360,46 @@ namespace DailyReport.Api.Controllers
 
                 await _database
                     .Updateable(report)
+                    .ExecuteCommandAsync();
+
+                await _database.Ado.CommitTranAsync();
+            }
+            catch
+            {
+                await _database.Ado.RollbackTranAsync();
+                throw;
+            }
+
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var report = await _database
+                .Queryable<DailyReportEntity>()
+                .FirstAsync(report => report.Id == id);
+
+            if (report is null)
+            {
+                return NotFound(new
+                {
+                    Message = "日报不存在"
+                });
+            }
+
+            await _database.Ado.BeginTranAsync();
+
+            try
+            {
+                await _database
+                    .Deleteable<DailyReportItemEntity>()
+                    .Where(item => item.DailyReportId == id)
+                    .ExecuteCommandAsync();
+
+                await _database
+                    .Deleteable<DailyReportEntity>()
+                    .Where(report => report.Id == id)
                     .ExecuteCommandAsync();
 
                 await _database.Ado.CommitTranAsync();
