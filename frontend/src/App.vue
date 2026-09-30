@@ -87,6 +87,7 @@ const isLoadingDetail = ref(false)
 const isAddingItem = ref(false)
 const isUpdatingItem = ref(false)
 const deletingItemId = ref<number | null>(null)
+const deletingReportId = ref<number | null>(null)
 
 const hourOptions = Array.from(
   { length: 16 },
@@ -363,7 +364,64 @@ async function deleteItem(item: DailyReportItem) {
   }
 }
 
+async function deleteReport(report: DailyReport) {
+  if (deletingReportId.value !== null) {
+    return
+  }
 
+  try {
+    await ElMessageBox.confirm(
+      `确定删除 ${formatDate(report.reportDate)} 的日报吗？其中的全部工作项也会被删除，且无法撤销。`,
+      '删除日报',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  deletingReportId.value = report.id
+  errorMessage.value = ''
+
+  try {
+    const response = await fetch(
+      `/api/daily-reports/${report.id}`,
+      {
+        method: 'DELETE',
+      },
+    )
+
+    if (!response.ok) {
+      const message = await getApiErrorMessage(
+        response,
+        `删除日报失败：HTTP ${response.status}`,
+      )
+
+      throw new Error(message)
+    }
+
+    reports.value = reports.value.filter(
+      item => item.id !== report.id,
+    )
+
+    if (selectedReport.value?.id === report.id) {
+      selectedReport.value = null
+      itemDescription.value = ''
+      itemHours.value = 1
+      isEditDialogVisible.value = false
+    }
+
+    ElMessage.success('日报删除成功')
+  } catch (error: unknown) {
+    errorMessage.value = getErrorMessage(error)
+    ElMessage.error(errorMessage.value)
+  } finally {
+    deletingReportId.value = null
+  }
+}
 
 onMounted(loadReports)
 </script>
@@ -475,16 +533,30 @@ onMounted(loadReports)
 
         <el-table-column
           label="操作"
-          width="120"
+          width="180"
           fixed="right"
         >
           <template #default="scope">
             <el-button
               type="primary"
               link
+              :disabled="deletingReportId !== null"
               @click="loadReportDetail(scope.row.id)"
             >
               查看详情
+            </el-button>
+
+            <el-button
+              type="danger"
+              link
+              :loading="deletingReportId === scope.row.id"
+              :disabled="
+                deletingReportId !== null &&
+                deletingReportId !== scope.row.id
+              "
+              @click="deleteReport(scope.row as DailyReport)"
+            >
+              删除日报
             </el-button>
           </template>
         </el-table-column>
