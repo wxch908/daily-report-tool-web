@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage,ElMessageBox, } from 'element-plus'
 
 interface DailyReport {
   id: number
@@ -75,11 +75,18 @@ const selectedDate = ref(getTodayText())
 const itemDescription = ref('')
 const itemHours = ref(1)
 
+const editingItem = ref<DailyReportItem | null>(null)
+const editDescription = ref('')
+const editHours = ref(1)
+const isEditDialogVisible = ref(false)
+
 const errorMessage = ref('')
 const isLoading = ref(false)
 const isCreating = ref(false)
 const isLoadingDetail = ref(false)
 const isAddingItem = ref(false)
+const isUpdatingItem = ref(false)
+const deletingItemId = ref<number | null>(null)
 
 const hourOptions = Array.from(
   { length: 16 },
@@ -233,6 +240,130 @@ async function createItem() {
     isAddingItem.value = false
   }
 }
+
+function openEditDialog(item: DailyReportItem) {
+  editingItem.value = item
+  editDescription.value = item.description
+  editHours.value = item.hours
+  isEditDialogVisible.value = true
+}
+
+function resetEditDialog() {
+  editingItem.value = null
+  editDescription.value = ''
+  editHours.value = 1
+}
+
+async function updateItem() {
+  if (!selectedReport.value || !editingItem.value) {
+    return
+  }
+
+  const description = editDescription.value.trim()
+
+  if (!description) {
+    ElMessage.warning('请输入工作内容')
+    return
+  }
+
+  const reportId = selectedReport.value.id
+  const itemId = editingItem.value.id
+
+  isUpdatingItem.value = true
+  errorMessage.value = ''
+
+  try {
+    const response = await fetch(
+      `/api/daily-reports/${reportId}/items/${itemId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description,
+          hours: editHours.value,
+        }),
+      },
+    )
+
+    if (!response.ok) {
+      const message = await getApiErrorMessage(
+        response,
+        `修改失败：HTTP ${response.status}`,
+      )
+
+      throw new Error(message)
+    }
+
+    isEditDialogVisible.value = false
+
+    await loadReportDetail(reportId)
+    await loadReports()
+
+    ElMessage.success('工作项修改成功')
+  } catch (error: unknown) {
+    errorMessage.value = getErrorMessage(error)
+    ElMessage.error(errorMessage.value)
+  } finally {
+    isUpdatingItem.value = false
+  }
+}
+
+async function deleteItem(item: DailyReportItem) {
+  if (!selectedReport.value) {
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定删除第 ${item.sortOrder} 项工作内容吗？删除后序号会自动重排。`,
+      '删除工作项',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  const reportId = selectedReport.value.id
+
+  deletingItemId.value = item.id
+  errorMessage.value = ''
+
+  try {
+    const response = await fetch(
+      `/api/daily-reports/${reportId}/items/${item.id}`,
+      {
+        method: 'DELETE',
+      },
+    )
+
+    if (!response.ok) {
+      const message = await getApiErrorMessage(
+        response,
+        `删除失败：HTTP ${response.status}`,
+      )
+
+      throw new Error(message)
+    }
+
+    await loadReportDetail(reportId)
+    await loadReports()
+
+    ElMessage.success('工作项删除成功')
+  } catch (error: unknown) {
+    errorMessage.value = getErrorMessage(error)
+    ElMessage.error(errorMessage.value)
+  } finally {
+    deletingItemId.value = null
+  }
+}
+
+
 
 onMounted(loadReports)
 </script>
@@ -459,8 +590,92 @@ onMounted(loadReports)
             {{ formatHours(scope.row.hours) }}
           </template>
         </el-table-column>
+
+        <el-table-column
+          label="操作"
+          width="150"
+          fixed="right"
+        >
+          <template #default="scope">
+            <el-button
+              type="primary"
+              link
+              @click="openEditDialog(scope.row as DailyReportItem)"
+            >
+              编辑
+            </el-button>
+
+            <el-button
+              type="danger"
+              link
+              :loading="deletingItemId === scope.row.id"
+              @click="deleteItem(scope.row as DailyReportItem)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+        
+
+
       </el-table>
     </el-card>
+
+    <el-dialog
+      v-model="isEditDialogVisible"
+      title="编辑工作项"
+      width="min(520px, 90%)"
+      :close-on-click-modal="false"
+      @closed="resetEditDialog"
+    >
+      <el-form
+        label-width="80px"
+        @submit.prevent
+      >
+        <el-form-item label="工作内容">
+          <el-input
+            v-model="editDescription"
+            type="textarea"
+            :rows="4"
+            maxlength="500"
+            show-word-limit
+            placeholder="请输入工作内容"
+          />
+        </el-form-item>
+
+        <el-form-item label="工时">
+          <el-select
+            v-model="editHours"
+            class="hours-select"
+          >
+            <el-option
+              v-for="hours in hourOptions"
+              :key="hours"
+              :label="formatHours(hours)"
+              :value="hours"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button
+          :disabled="isUpdatingItem"
+          @click="isEditDialogVisible = false"
+        >
+          取消
+        </el-button>
+
+        <el-button
+          type="primary"
+          :loading="isUpdatingItem"
+          @click="updateItem"
+        >
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
+
   </main>
 </template>
 
