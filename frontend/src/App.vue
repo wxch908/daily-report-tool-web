@@ -1,28 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage,ElMessageBox, } from 'element-plus'
+import type {
+  DailyReport,
+  DailyReportItem,
+  DailyReportDetail,
+} from './types/dailyReport'
 
-interface DailyReport {
-  id: number
-  reportDate: string
-  createdAt: string
-  updatedAt: string
-}
-
-interface DailyReportItem {
-  id: number
-  dailyReportId: number
-  description: string
-  hours: number
-  sortOrder: number
-  createdAt: string
-  updatedAt: string
-}
-
-interface DailyReportDetail extends DailyReport {
-  totalHours: number
-  items: DailyReportItem[]
-}
+import {
+  getDailyReports,
+  getDailyReport,
+} from './api/dailyReports'
 
 function getTodayText() {
   const today = new Date()
@@ -99,13 +87,7 @@ async function loadReports() {
   errorMessage.value = ''
 
   try {
-    const response = await fetch('/api/daily-reports')
-
-    if (!response.ok) {
-      throw new Error(`查询失败：HTTP ${response.status}`)
-    }
-
-    reports.value = (await response.json()) as DailyReport[]
+    reports.value = await getDailyReports()
   } catch (error: unknown) {
     errorMessage.value = getErrorMessage(error)
     ElMessage.error(errorMessage.value)
@@ -119,19 +101,7 @@ async function loadReportDetail(id: number) {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(`/api/daily-reports/${id}`)
-
-    if (!response.ok) {
-      const message = await getApiErrorMessage(
-        response,
-        `详情查询失败：HTTP ${response.status}`,
-      )
-
-      throw new Error(message)
-    }
-
-    selectedReport.value =
-      (await response.json()) as DailyReportDetail
+    selectedReport.value = await getDailyReport(id)
   } catch (error: unknown) {
     selectedReport.value = null
     errorMessage.value = getErrorMessage(error)
