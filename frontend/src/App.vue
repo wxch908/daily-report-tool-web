@@ -10,6 +10,11 @@ import type {
 import {
   getDailyReports,
   getDailyReport,
+  createDailyReport,
+  createDailyReportItem,
+  updateDailyReportItem,
+  deleteDailyReportItem,
+  deleteDailyReport,
 } from './api/dailyReports'
 
 function getTodayText() {
@@ -41,20 +46,6 @@ function getErrorMessage(error: unknown) {
     : '发生了未知错误'
 }
 
-async function getApiErrorMessage(
-  response: Response,
-  fallback: string,
-) {
-  try {
-    const result = (await response.json()) as {
-      message?: string
-    }
-
-    return result.message ?? fallback
-  } catch {
-    return fallback
-  }
-}
 
 const reports = ref<DailyReport[]>([])
 const selectedReport = ref<DailyReportDetail | null>(null)
@@ -121,27 +112,9 @@ async function createReport() {
   errorMessage.value = ''
 
   try {
-    const response = await fetch('/api/daily-reports', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        reportDate: selectedDate.value,
-      }),
-    })
-
-    if (!response.ok) {
-      const message = await getApiErrorMessage(
-        response,
-        `创建失败：HTTP ${response.status}`,
-      )
-
-      throw new Error(message)
-    }
-
-    const createdReport =
-      (await response.json()) as DailyReport
+    const createdReport = await createDailyReport(
+      selectedDate.value,
+    )
 
     await loadReports()
     await loadReportDetail(createdReport.id)
@@ -174,28 +147,10 @@ async function createItem() {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(
-      `/api/daily-reports/${reportId}/items`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          description,
-          hours: itemHours.value,
-        }),
-      },
-    )
-
-    if (!response.ok) {
-      const message = await getApiErrorMessage(
-        response,
-        `添加失败：HTTP ${response.status}`,
-      )
-
-      throw new Error(message)
-    }
+    await createDailyReportItem(reportId, {
+      description,
+      hours: itemHours.value,
+    })
 
     itemDescription.value = ''
     itemHours.value = 1
@@ -244,28 +199,10 @@ async function updateItem() {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(
-      `/api/daily-reports/${reportId}/items/${itemId}`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          description,
-          hours: editHours.value,
-        }),
-      },
-    )
-
-    if (!response.ok) {
-      const message = await getApiErrorMessage(
-        response,
-        `修改失败：HTTP ${response.status}`,
-      )
-
-      throw new Error(message)
-    }
+    await updateDailyReportItem(reportId, itemId, {
+      description,
+      hours: editHours.value,
+    })
 
     isEditDialogVisible.value = false
 
@@ -306,21 +243,7 @@ async function deleteItem(item: DailyReportItem) {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(
-      `/api/daily-reports/${reportId}/items/${item.id}`,
-      {
-        method: 'DELETE',
-      },
-    )
-
-    if (!response.ok) {
-      const message = await getApiErrorMessage(
-        response,
-        `删除失败：HTTP ${response.status}`,
-      )
-
-      throw new Error(message)
-    }
+    await deleteDailyReportItem(reportId, item.id)
 
     await loadReportDetail(reportId)
     await loadReports()
@@ -357,21 +280,7 @@ async function deleteReport(report: DailyReport) {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(
-      `/api/daily-reports/${report.id}`,
-      {
-        method: 'DELETE',
-      },
-    )
-
-    if (!response.ok) {
-      const message = await getApiErrorMessage(
-        response,
-        `删除日报失败：HTTP ${response.status}`,
-      )
-
-      throw new Error(message)
-    }
+    await deleteDailyReport(report.id)
 
     reports.value = reports.value.filter(
       item => item.id !== report.id,
