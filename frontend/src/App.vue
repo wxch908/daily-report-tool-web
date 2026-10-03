@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DailyReportItemTable from './components/DailyReportItemTable.vue'
 import DailyReportList from './components/DailyReportList.vue'
 import { onMounted, ref } from 'vue'
 import { ElMessage,ElMessageBox, } from 'element-plus'
@@ -431,66 +432,12 @@ onMounted(loadReports)
         </el-form-item>
       </el-form>
 
-      <el-empty
-        v-if="selectedReport.items.length === 0"
-        description="当前日报还没有工作项"
+      <DailyReportItemTable
+        :items="selectedReport.items"
+        :deleting-item-id="deletingItemId"
+        @edit="openEditDialog"
+        @delete="deleteItem"
       />
-
-      <el-table
-        v-else
-        :data="selectedReport.items"
-        border
-        stripe
-      >
-        <el-table-column
-          prop="sortOrder"
-          label="序号"
-          width="80"
-        />
-
-        <el-table-column
-          prop="description"
-          label="工作内容"
-          min-width="320"
-        />
-
-        <el-table-column
-          label="工时"
-          width="120"
-        >
-          <template #default="scope">
-            {{ formatHours(scope.row.hours) }}
-          </template>
-        </el-table-column>
-
-        <el-table-column
-          label="操作"
-          width="150"
-          fixed="right"
-        >
-          <template #default="scope">
-            <el-button
-              type="primary"
-              link
-              @click="openEditDialog(scope.row as DailyReportItem)"
-            >
-              编辑
-            </el-button>
-
-            <el-button
-              type="danger"
-              link
-              :loading="deletingItemId === scope.row.id"
-              @click="deleteItem(scope.row as DailyReportItem)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-        
-
-
-      </el-table>
     </el-card>
 
     <el-dialog
