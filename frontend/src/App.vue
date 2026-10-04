@@ -20,24 +20,12 @@ import {
   deleteDailyReport,
 } from './api/dailyReports'
 
-function getTodayText() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
+import {
+  getTodayText,
+  formatDate,
+  formatHours,
+} from './utils/format'
 
-  return `${year}-${month}-${day}`
-}
-
-function formatDate(value: string) {
-  return value.slice(0, 10)
-}
-
-function formatHours(value: number) {
-  return Number.isInteger(value)
-    ? `${value}H`
-    : `${value.toFixed(1)}H`
-}
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error

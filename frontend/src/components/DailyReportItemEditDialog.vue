@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatHours } from '../utils/format'
+
 const visible = defineModel<boolean>({
   required: true,
 })
@@ -21,11 +23,6 @@ const emit = defineEmits<{
   closed: []
 }>()
 
-function formatHours(value: number) {
-  return Number.isInteger(value)
-    ? `${value}H`
-    : `${value.toFixed(1)}H`
-}
 </script>
 
 <template>

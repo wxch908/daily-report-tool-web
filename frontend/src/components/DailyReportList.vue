@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { DailyReport } from '../types/dailyReport'
 
+import {
+  formatDate,
+  formatDateTime,
+} from '../utils/format'
+
 defineProps<{
   reports: DailyReport[]
   loading: boolean
@@ -12,13 +17,6 @@ const emit = defineEmits<{
   delete: [report: DailyReport]
 }>()
 
-function formatDate(value: string) {
-  return value.slice(0, 10)
-}
-
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString()
-}
 </script>
 
 <template>

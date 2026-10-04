@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { DailyReportItem } from '../types/dailyReport'
 
+import { formatHours } from '../utils/format'
+
 defineProps<{
   items: DailyReportItem[]
   deletingItemId: number | null
@@ -11,11 +13,6 @@ const emit = defineEmits<{
   delete: [item: DailyReportItem]
 }>()
 
-function formatHours(value: number) {
-  return Number.isInteger(value)
-    ? `${value}H`
-    : `${value.toFixed(1)}H`
-}
 </script>
 
 <template>
