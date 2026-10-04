@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DailyReportItemEditDialog from './components/DailyReportItemEditDialog.vue'
 import DailyReportItemTable from './components/DailyReportItemTable.vue'
 import DailyReportList from './components/DailyReportList.vue'
 import { onMounted, ref } from 'vue'
@@ -440,60 +441,15 @@ onMounted(loadReports)
       />
     </el-card>
 
-    <el-dialog
+    <DailyReportItemEditDialog
       v-model="isEditDialogVisible"
-      title="编辑工作项"
-      width="min(520px, 90%)"
-      :close-on-click-modal="false"
+      v-model:description="editDescription"
+      v-model:hours="editHours"
+      :saving="isUpdatingItem"
+      :hour-options="hourOptions"
+      @save="updateItem"
       @closed="resetEditDialog"
-    >
-      <el-form
-        label-width="80px"
-        @submit.prevent
-      >
-        <el-form-item label="工作内容">
-          <el-input
-            v-model="editDescription"
-            type="textarea"
-            :rows="4"
-            maxlength="500"
-            show-word-limit
-            placeholder="请输入工作内容"
-          />
-        </el-form-item>
-
-        <el-form-item label="工时">
-          <el-select
-            v-model="editHours"
-            class="hours-select"
-          >
-            <el-option
-              v-for="hours in hourOptions"
-              :key="hours"
-              :label="formatHours(hours)"
-              :value="hours"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button
-          :disabled="isUpdatingItem"
-          @click="isEditDialogVisible = false"
-        >
-          取消
-        </el-button>
-
-        <el-button
-          type="primary"
-          :loading="isUpdatingItem"
-          @click="updateItem"
-        >
-          保存
-        </el-button>
-      </template>
-    </el-dialog>
+    />
 
   </main>
 </template>
