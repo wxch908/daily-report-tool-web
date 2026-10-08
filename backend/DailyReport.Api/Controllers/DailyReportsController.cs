@@ -17,10 +17,49 @@ namespace DailyReport.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<DailyReportEntity>>> GetAll()
+        public async Task<ActionResult<List<DailyReportEntity>>> GetAll(
+            [FromQuery] DateOnly? startDate = null,
+            [FromQuery] DateOnly? endDate = null
+        )
         {
-            var reports = await _database
-                .Queryable<DailyReportEntity>()
+            if (
+                startDate.HasValue &&
+                endDate.HasValue &&
+                startDate.Value > endDate.Value
+            )
+            {
+                return BadRequest(new
+                {
+                    Message = "开始日期不能晚于结束日期"
+                });
+            }
+
+            var query = _database
+                .Queryable<DailyReportEntity>();
+
+            if (startDate.HasValue)
+            {
+                var start = startDate.Value.ToDateTime(
+                    TimeOnly.MinValue
+                );
+
+                query = query.Where(
+                    report => report.ReportDate >= start
+                );
+            }
+
+            if (endDate.HasValue)
+            {
+                var end = endDate.Value.ToDateTime(
+                    TimeOnly.MinValue
+                );
+
+                query = query.Where(
+                    report => report.ReportDate <= end
+                );
+            }
+
+            var reports = await query
                 .OrderBy(
                     report => report.ReportDate,
                     OrderByType.Desc
