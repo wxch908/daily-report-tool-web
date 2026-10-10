@@ -43,9 +43,28 @@ async function sendRequest(
   return response
 }
 
-export async function getDailyReports(): Promise<DailyReport[]> {
+export async function getDailyReports(
+  startDate?: string,
+  endDate?: string,
+): Promise<DailyReport[]> {
+  const params = new URLSearchParams()
+
+  if (startDate) {
+    params.set('startDate', startDate)
+  }
+
+  if (endDate) {
+    params.set('endDate', endDate)
+  }
+
+  const queryString = params.toString()
+
+  const url = queryString
+    ? `/api/daily-reports?${queryString}`
+    : '/api/daily-reports'
+
   const response = await sendRequest(
-    '/api/daily-reports',
+    url,
     { method: 'GET' },
     '查询失败',
   )

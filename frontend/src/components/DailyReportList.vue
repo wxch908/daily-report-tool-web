@@ -10,6 +10,7 @@ defineProps<{
   reports: DailyReport[]
   loading: boolean
   deletingReportId: number | null
+  emptyDescription?: string
 }>()
 
 const emit = defineEmits<{
@@ -39,7 +40,9 @@ const emit = defineEmits<{
 
     <el-empty
       v-else-if="reports.length === 0"
-      description="还没有日报，请创建第一条"
+      :description="
+        emptyDescription ?? '还没有日报，请创建第一条'
+      "
     />
 
     <el-table

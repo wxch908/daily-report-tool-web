@@ -36,6 +36,8 @@ function getErrorMessage(error: unknown) {
 
 const reports = ref<DailyReport[]>([])
 const selectedReport = ref<DailyReportDetail | null>(null)
+const filterDateRange = ref<[string, string] | null>(null)
+const appliedDateRange = ref<[string, string] | null>(null)
 
 const selectedDate = ref(getTodayText())
 const itemDescription = ref('')
@@ -65,13 +67,49 @@ async function loadReports() {
   errorMessage.value = ''
 
   try {
-    reports.value = await getDailyReports()
+    const range = appliedDateRange.value
+
+    reports.value = await getDailyReports(
+      range?.[0],
+      range?.[1],
+    )
   } catch (error: unknown) {
     errorMessage.value = getErrorMessage(error)
     ElMessage.error(errorMessage.value)
   } finally {
     isLoading.value = false
   }
+}
+
+async function searchReports() {
+  const range = filterDateRange.value
+
+  if (range && range[0] > range[1]) {
+    ElMessage.warning('开始日期不能晚于结束日期')
+    return
+  }
+
+  appliedDateRange.value = range
+    ? [range[0], range[1]]
+    : null
+
+  clearReportDetail()
+  await loadReports()
+}
+
+async function resetReportFilter() {
+  filterDateRange.value = null
+  appliedDateRange.value = null
+
+  clearReportDetail()
+  await loadReports()
+}
+
+function clearReportDetail() {
+  selectedReport.value = null
+  itemDescription.value = ''
+  itemHours.value = 1
+  isEditDialogVisible.value = false
 }
 
 async function loadReportDetail(id: number) {
@@ -345,10 +383,61 @@ onMounted(loadReports)
       :closable="false"
     />
 
+    <el-card class="filter-card" shadow="never">
+      <el-form
+        class="filter-form"
+        inline
+        @submit.prevent
+      >
+        <el-form-item label="日期范围">
+          <el-date-picker
+            v-model="filterDateRange"
+            type="daterange"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            :disabled="isLoading"
+          />
+        </el-form-item>
+
+        <el-form-item>
+          <el-button
+            type="primary"
+            :loading="isLoading"
+            @click="searchReports"
+          >
+            查询
+          </el-button>
+
+          <el-button
+            :disabled="isLoading"
+            @click="resetReportFilter"
+          >
+            重置
+          </el-button>
+        </el-form-item>
+      </el-form>
+
+      <p class="filter-summary">
+        {{
+          appliedDateRange
+            ? `当前查询范围：${appliedDateRange[0]} 至 ${appliedDateRange[1]}`
+            : '当前查询范围：全部日期'
+        }}
+      </p>
+    </el-card>
+
     <DailyReportList
         :reports="reports"
         :loading="isLoading"
         :deleting-report-id="deletingReportId"
+        :empty-description="
+          appliedDateRange
+            ? '所选日期范围内没有日报'
+            : '还没有日报，请创建第一条'
+        "
         @view="loadReportDetail"
         @delete="deleteReport"
     />
@@ -448,6 +537,8 @@ onMounted(loadReports)
   margin: 0 auto;
   padding: 48px 0;
 }
+
+
 
 .page-header {
   margin-bottom: 24px;
